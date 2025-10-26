@@ -1,18 +1,28 @@
-// server.js
-const WebSocket = require('ws');
-const PORT = process.env.PORT || 3000;
+import express from "express";
+import { WebSocketServer } from "ws";
+import http from "http";
 
-const server = new WebSocket.Server({ port: PORT });
-console.log('✅ WebSocket server running on port ${PORT}');
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
-server.on('connection', (socket) => {
-  console.log('🟢 Client connected');
-  socket.send('Hello from Railway WebSocket!');
+// Serve your dashboard (index.html)
+app.use(express.static("."));
 
-  socket.on('message', (msg) => {
-    console.log('📩 Message:', msg.toString());
-    socket.send('Echo: ' + msg);
+wss.on("connection", (ws) => {
+  console.log("Client connected");
+
+  ws.on("message", (msg) => {
+    console.log("From ESP32:", msg.toString());
+    // Send data to all connected web clients
+    wss.clients.forEach(client => {
+      if (client.readyState === 1) client.send(msg.toString());
+    });
   });
 
-  socket.on('close', () => console.log('🔴 Client disconnected'));
+  ws.on("close", () => console.log("Client disconnected"));
+});
+
+server.listen(process.env.PORT || 3000, () => {
+  console.log("Server running on port " + (process.env.PORT || 3000));
 });
